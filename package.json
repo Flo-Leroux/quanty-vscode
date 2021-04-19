@@ -1,0 +1,25 @@
+{
+    "name": "qy",
+    "displayName": "Quanty",
+    "description": "Highlight syntax for Quanty Files",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.55.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "quanty",
+            "aliases": ["Quanty", "quanty"],
+            "extensions": [".quanty",".qy"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "quanty",
+            "scopeName": "main.qy",
+            "path": "./syntaxes/quanty.tmLanguage.json"
+        }]
+    }
+}
