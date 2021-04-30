@@ -1,0 +1,62 @@
+{
+	"$schema": "vscode://schemas/color-theme",
+	"type": "Quanty Dark",
+	"tokenColors": [
+		{	
+			"scope": "string",
+			"settings": {
+				"foreground": "#dc9428",
+			}
+		},
+        {
+			"scope": "comment",
+			"settings": {
+				"foreground": "#6A9955"
+			}
+		},
+        {
+            "scope": "keyword",
+            "settings": {
+                "foreground": "#b683e1"
+            }
+        },
+        {
+            "scope": "support.type",
+            "settings": {
+                "foreground": "#00FF00"
+            }
+        },
+        {
+            "scope": "meta.type.ident",
+            "settings": {
+                "foreground": "#3ed3f5"
+            }
+        },
+        {
+            "scope": "variable",
+            "settings": {
+                "foreground": "#f53ef5"
+            }
+        },
+        {
+            "scope": "variable.type",
+            "settings": {
+                "foreground": "#f53ef5c1"
+            }
+        },
+        {
+            "scope": "support.directive",
+            "settings": {
+                "foreground": "#ffd000"
+            }
+        },
+        {
+            "scope": "meta.html.tag.quanty",
+            "settings": {
+                "foreground": "#FF0000",
+                "fontStyle": "bold"
+            }
+        }
+	],
+    "semanticHighlighting": true
+}
