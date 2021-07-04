@@ -8,7 +8,9 @@
     "quanty": {
       "patterns": [
         { "include": "#quanty-comment" },
-        { "include": "#quanty-component" }
+        { "include": "#quanty-import" },
+        { "include": "#quanty-component" },
+        { "include": "#quanty-store" }
       ]
     },
     "quanty-comment": {
@@ -35,23 +37,39 @@
         }
       ]
     },
+    "quanty-import": {
+      "name": "meta.import.quanty",
+      "begin": "\\s*(\\bimport\\b)\\s+(\\()",
+      "end": "(?<=\\))",
+      "captures": {
+        "1": { "name": "keyword.import.quanty" },
+        "2": { "name": "punctuation.brace.left.quanty" }
+      },
+      "patterns": [
+        {
+          "name": "string.path",
+          "begin": "(\")",
+          "end": "(\")"
+        }
+      ]
+    },
     "quanty-string": {
       "name": "string.quoted.double",
       "begin": "(\")",
       "end": "(\")",
       "patterns": [
-          {
-            "name": "constant.character.escape",
-            "match": "(\\\\\")"
-          },
-          {
-            "name": "constant.character.escape",
-            "match": "\\{[a-z.0-9,A-Z*_/~-]*\\}|\\\\|\\\\0\\d\\d|\\\\\\w"
-          },
-          {
-            "name": "variable.name",
-            "match": "\\$[a-z][a-z.0-9A-Z]*|\\$\\([a-z.0-9,A-Z-]*\\)(\\([.0-9-]+\\))?"
-          }
+        {
+          "name": "constant.character.escape",
+          "match": "(\\\\\")"
+        },
+        {
+          "name": "constant.character.escape",
+          "match": "\\{[a-z.0-9,A-Z*_/~-]*\\}|\\\\|\\\\0\\d\\d|\\\\\\w"
+        },
+        {
+          "name": "variable.name",
+          "match": "\\$[a-z][a-z.0-9A-Z]*|\\$\\([a-z.0-9,A-Z-]*\\)(\\([.0-9-]+\\))?"
+        }
       ]
     },
     "quanty-component": {
@@ -67,6 +85,99 @@
         { "include": "#quanty-html-set" },
         { "include": "#quanty-directive" },
         { "include": "#quanty-skip-newlines" }
+      ]
+    },
+    "quanty-store": {
+      "name": "meta.store.quanty",
+      "begin": "\\s*(\\bstore\\b)\\s+([A-Z][_0-9A-Za-z]*)?\\s*",
+      "end": "(?<=})",
+      "captures": {
+        "1": { "name": "keyword.store.quanty" },
+        "2": { "name": "entity.name.store.quanty" }
+      },
+      "patterns": [
+        { "include": "#quanty-comment" },
+        { "include": "#quanty-store-set" },
+        { "include": "#quanty-directive" },
+        { "include": "#quanty-skip-newlines" }
+      ]
+    },
+    "quanty-store-set": {
+      "name": "meta.storeset.quanty",
+      "begin": "\\s*({)",
+      "end": "\\s*(})",
+      "beginCaptures": {
+        "1": { "name": "punctuation.operation.quanty" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.operation.quanty" }
+      },
+      "patterns": [
+        { "include": "#quanty-comment" },
+        { "include": "#quanty-store-field" }
+      ]
+    },
+    "quanty-store-field": {
+      "patterns": [
+        {
+          "match": "\\s*([_A-Za-z][_0-9A-Za-z]*)\\s*(:)",
+          "captures": {
+            "1": { "name": "string.unquoted.alias.quanty" },
+            "2": { "name": "punctuation.colon.quanty" }
+          }
+        },
+        {
+          "match": "\\s*(\\bInt\\b)\\s*(=)\\s*(0|[1-9][0-9]*)",
+          "captures": {
+            "1": { "name": "meta.parameter.type" },
+            "2": { "name": "punctuation.equal" },
+            "3": { "name": "support.property-value" }
+          }
+        },
+        {
+          "begin": "\\s*(\\bfun\\b)\\s*",
+          "end": "(?<=})",
+          "captures": {
+            "1": { "name": "keyword.fun.quanty" },
+            "2": { "name": "entity.name.store.quanty" }
+          },
+          "patterns": [
+            { "include": "#quanty-function" }
+          ]
+        },
+        { "include": "#quanty-skip-newlines" }
+      ]
+    },
+    "quanty-function": {
+      "name": "support.function",
+      "begin": "\\s*({)",
+      "end": "\\s*(})",
+      "beginCaptures": {
+        "1": { "name": "punctuation.operation.quanty" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.operation.quanty" }
+      },
+      "patterns": [
+        { "include": "#quanty-comment" },
+        {
+          "name": "add.quanty",
+          "match": "\\s*([_A-Za-z][_0-9A-Za-z]*)\\s*(\\+)\\s*(0|[1-9][0-9]*)",
+          "captures": {
+            "1": { "name": "support.variable" },
+            "2": { "name": "operator.add" },
+            "3": { "name": "support.property-value" }
+          }
+        },
+        {
+          "name": "sub.quanty",
+          "match": "\\s*([_A-Za-z][_0-9A-Za-z]*)\\s*(\\-)\\s*(0|[1-9][0-9]*)",
+          "captures": {
+            "1": { "name": "support.variable" },
+            "2": { "name": "operator.sub" },
+            "3": { "name": "support.property-value" }
+          }
+        }
       ]
     },
     "quanty-html-set": {

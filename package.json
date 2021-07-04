@@ -3,6 +3,7 @@
   "displayName": "Quanty",
   "description": "Highlight syntax for Quanty Files",
   "version": "0.0.1",
+  "main": "./out/extension",
   "engines": {
     "vscode": "^1.55.0"
   },
@@ -36,5 +37,36 @@
     "[languageId]": {
       "editor.semanticHighlighting.enabled": true
     }
+  },
+  "activationEvents": [
+    "onCommand:vscode-quanty.isDebugging",
+    "onCommand:vscode-quanty.contentProvider",
+    "onLanguage:quanty",
+    "workspaceContains:**/.quantyrc",
+    "workspaceContains:**/.quantyrc.{json,yaml,yml,js}",
+    "workspaceContains:**/quanty.config.{json,yaml,yml,js}",
+    "*"
+  ],
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "postinstall": "node ./node_modules/vscode/bin/install",
+    "test": "npm run compile && node ./node_modules/vscode/bin/test",
+    "vsce:package": "vsce package",
+    "env:source": "export $(cat .envrc | xargs)",
+    "vsce:publish": "sh publish.sh",
+    "upgrade-interactive": "npx npm-check -u"
+  },
+  "devDependencies": {
+    "@types/node": "^15.0.1",
+    "tslint": "5.20.1",
+    "typescript": "3.9.7",
+    "vsce": "^1.78.0",
+    "vscode": "^1.1.37"
+  },
+  "dependencies": {
+    "jayson": "^3.6.3",
+    "vscode-languageclient": "^7.0.0"
   }
 }
