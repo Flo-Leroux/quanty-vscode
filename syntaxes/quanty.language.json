@@ -1,0 +1,91 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Quanty",
+  "scopeName": "source.qy",
+  "fileTypes": ["qy", "quanty"],
+  "patterns": [
+    {
+      "include": "#quanty-comment"
+    },
+    {
+      "include": "#quanty-component"
+    }
+  ],
+  "repository": {
+    "quanty-comment": {
+      "patterns": [
+        {
+          "name": "comment.line.quanty",
+          "begin": "(\"\"\")",
+          "end": "(\"\"\")",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.whitespace.comment.leading.quanty"
+            }
+          }
+        }
+      ]
+    },
+    "quanty-component": {
+      "name": "meta.component.quanty",
+      "begin": "\\s*(\\bcomponent\\b)\\s+([A-Z][_0-9A-Za-z]*)?\\s*",
+      "end": "(?<=})",
+      "captures": {
+        "1": { "name": "keyword.component.quanty" },
+        "2": { "name": "entity.name.component.quanty" }
+      },
+      "patterns": [
+        { "include": "#quanty-comment" },
+        { "include": "#quanty-string" },
+        { "include": "#quanty-field" },
+        { "include": "#quanty-skip-newlines" }
+      ]
+    },
+    "quanty-string": {
+      "name": "string.quoted.double",
+      "begin": "(\")",
+      "end": "(\")",
+      "patterns": [
+        {
+          "name": "constant.character.escape",
+          "match": "(\\\\\")"
+        },
+        {
+          "name": "constant.character.escape",
+          "match": "\\{[a-z.0-9,A-Z*_/~-]*\\}|\\\\|\\\\0\\d\\d|\\\\\\w"
+        },
+        {
+          "name": "variable.name",
+          "match": "\\$[a-z][a-z.0-9A-Z]*|\\$\\([a-z.0-9,A-Z-]*\\)(\\([.0-9-]+\\))?"
+        }
+      ]
+    },
+    "quanty-field": {
+      "patterns": [
+        {
+          "match": "\\s*([_A-Za-z][_0-9A-Za-z]*)\\s*(:)",
+          "captures": {
+            "1": { "name": "string.unquoted.alias.quanty" },
+            "2": { "name": "punctuation.colon.quanty" }
+          }
+        },
+        {
+          "match": "\\s*([a-zA-Z0-9]+)",
+          "captures": {
+            "1": { "name": "entity.name.tag" }
+          }
+        },
+        { "include": "#quanty-arguments" },
+        { "include": "#quanty-directive" },
+        { "include": "#quanty-html-set" },
+        { "include": "#quanty-skip-newlines" }
+      ]
+    },
+    "quanty-ignore-spaces": {
+      "match": "\\s*"
+    },
+    "quanty-skip-newlines": {
+      "match": "\\s*\n"
+    }
+  }
+}
