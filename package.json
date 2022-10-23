@@ -1,19 +1,29 @@
 {
-  "name": "qy",
-  "displayName": "Quanty",
-  "description": "Highlight syntax for Quanty Files",
+  "name": "quanty-lang",
+  "displayName": "Quanty Lang",
+  "description": "Language Services for Quanty Lang",
   "version": "0.0.1",
-  "main": "./out/extension",
+  "main": "./dist/main",
   "engines": {
-    "vscode": "^1.55.0"
+    "vscode": "^1.72.0"
   },
   "categories": [
     "Programming Languages"
   ],
   "contributes": {
+    "commands": [
+      {
+        "command": "quanty-lang.restart",
+        "title": "Quanty: Restart"
+      },
+      {
+        "command": "quanty-lang.showLogs",
+        "title": "Quanty: Show Logs"
+      }
+    ],
     "languages": [
       {
-        "id": "quanty",
+        "id": "quanty-lang",
         "aliases": [
           "Quanty",
           "quanty"
@@ -27,11 +37,27 @@
     ],
     "grammars": [
       {
-        "language": "quanty",
+        "language": "quanty-lang",
         "scopeName": "source.qy",
-        "path": "./grammars/quanty.json"
+        "path": "./syntaxes/quanty.language.json"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Quanty Lang",
+      "properties": {
+        "quanty-lang.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "messages",
+          "description": "Level of verbosity in quanty's log output.",
+          "scope": "window"
+        }
+      }
+    }
   },
   "configurationDefaults": {
     "[languageId]": {
@@ -39,34 +65,36 @@
     }
   },
   "activationEvents": [
-    "onCommand:vscode-quanty.isDebugging",
-    "onCommand:vscode-quanty.contentProvider",
-    "onLanguage:quanty",
-    "workspaceContains:**/.quantyrc",
-    "workspaceContains:**/.quantyrc.{json,yaml,yml,js}",
-    "workspaceContains:**/quanty.config.{json,yaml,yml,js}",
-    "*"
+    "onLanguage:quanty-lang",
+    "workspaceContains:.qy"
   ],
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "postinstall": "node ./node_modules/vscode/bin/install",
     "test": "npm run compile && node ./node_modules/vscode/bin/test",
     "vsce:package": "vsce package",
     "env:source": "export $(cat .envrc | xargs)",
     "vsce:publish": "sh publish.sh",
-    "upgrade-interactive": "npx npm-check -u"
+    "upgrade-interactive": "npx npm-check -u",
+    "webpack": "webpack --mode development",
+    "compile": "webpack --mode production",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "package": "npx vsce package",
+    "publish": "npx vsce publish"
   },
   "devDependencies": {
-    "@types/node": "^15.0.1",
-    "tslint": "5.20.1",
-    "typescript": "3.9.7",
-    "vsce": "^1.78.0",
-    "vscode": "^1.1.37"
+    "@types/node": "^18.11.3",
+    "@types/vscode": "^1.72.0",
+    "ts-loader": "^9.4.1",
+    "tslint": "^6.1.3",
+    "typescript": "^4.8.4",
+    "vsce": "^2.13.0",
+    "vscode-test": "^1.6.1",
+    "webpack": "^5.74.0",
+    "webpack-cli": "^4.10.0"
   },
   "dependencies": {
-    "jayson": "^3.6.3",
-    "vscode-languageclient": "^7.0.0"
+    "vscode-languageclient": "^8.0.2"
   }
 }

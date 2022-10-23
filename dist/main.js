@@ -647,10 +647,10 @@ module.exports = LRUCache
 module.exports = minimatch
 minimatch.Minimatch = Minimatch
 
-var path = (function () { try { return __webpack_require__(1017) } catch (e) {}}()) || {
-  sep: '/'
-}
-minimatch.sep = path.sep
+var path = { sep: '/' }
+try {
+  path = __webpack_require__(1017)
+} catch (er) {}
 
 var GLOBSTAR = minimatch.GLOBSTAR = Minimatch.GLOBSTAR = {}
 var expand = __webpack_require__(3644)
@@ -702,64 +702,43 @@ function filter (pattern, options) {
 }
 
 function ext (a, b) {
+  a = a || {}
   b = b || {}
   var t = {}
-  Object.keys(a).forEach(function (k) {
-    t[k] = a[k]
-  })
   Object.keys(b).forEach(function (k) {
     t[k] = b[k]
+  })
+  Object.keys(a).forEach(function (k) {
+    t[k] = a[k]
   })
   return t
 }
 
 minimatch.defaults = function (def) {
-  if (!def || typeof def !== 'object' || !Object.keys(def).length) {
-    return minimatch
-  }
+  if (!def || !Object.keys(def).length) return minimatch
 
   var orig = minimatch
 
   var m = function minimatch (p, pattern, options) {
-    return orig(p, pattern, ext(def, options))
+    return orig.minimatch(p, pattern, ext(def, options))
   }
 
   m.Minimatch = function Minimatch (pattern, options) {
     return new orig.Minimatch(pattern, ext(def, options))
-  }
-  m.Minimatch.defaults = function defaults (options) {
-    return orig.defaults(ext(def, options)).Minimatch
-  }
-
-  m.filter = function filter (pattern, options) {
-    return orig.filter(pattern, ext(def, options))
-  }
-
-  m.defaults = function defaults (options) {
-    return orig.defaults(ext(def, options))
-  }
-
-  m.makeRe = function makeRe (pattern, options) {
-    return orig.makeRe(pattern, ext(def, options))
-  }
-
-  m.braceExpand = function braceExpand (pattern, options) {
-    return orig.braceExpand(pattern, ext(def, options))
-  }
-
-  m.match = function (list, pattern, options) {
-    return orig.match(list, pattern, ext(def, options))
   }
 
   return m
 }
 
 Minimatch.defaults = function (def) {
+  if (!def || !Object.keys(def).length) return Minimatch
   return minimatch.defaults(def).Minimatch
 }
 
 function minimatch (p, pattern, options) {
-  assertValidPattern(pattern)
+  if (typeof pattern !== 'string') {
+    throw new TypeError('glob pattern string required')
+  }
 
   if (!options) options = {}
 
@@ -767,6 +746,9 @@ function minimatch (p, pattern, options) {
   if (!options.nocomment && pattern.charAt(0) === '#') {
     return false
   }
+
+  // "" only matches ""
+  if (pattern.trim() === '') return p === ''
 
   return new Minimatch(pattern, options).match(p)
 }
@@ -776,14 +758,15 @@ function Minimatch (pattern, options) {
     return new Minimatch(pattern, options)
   }
 
-  assertValidPattern(pattern)
+  if (typeof pattern !== 'string') {
+    throw new TypeError('glob pattern string required')
+  }
 
   if (!options) options = {}
-
   pattern = pattern.trim()
 
   // windows support: need to use /, not \
-  if (!options.allowWindowsEscape && path.sep !== '/') {
+  if (path.sep !== '/') {
     pattern = pattern.split(path.sep).join('/')
   }
 
@@ -794,7 +777,6 @@ function Minimatch (pattern, options) {
   this.negate = false
   this.comment = false
   this.empty = false
-  this.partial = !!options.partial
 
   // make the set of regexps etc.
   this.make()
@@ -804,6 +786,9 @@ Minimatch.prototype.debug = function () {}
 
 Minimatch.prototype.make = make
 function make () {
+  // don't do it more than once.
+  if (this._made) return
+
   var pattern = this.pattern
   var options = this.options
 
@@ -823,7 +808,7 @@ function make () {
   // step 2: expand braces
   var set = this.globSet = this.braceExpand()
 
-  if (options.debug) this.debug = function debug() { console.error.apply(console, arguments) }
+  if (options.debug) this.debug = console.error
 
   this.debug(this.pattern, set)
 
@@ -903,27 +888,17 @@ function braceExpand (pattern, options) {
   pattern = typeof pattern === 'undefined'
     ? this.pattern : pattern
 
-  assertValidPattern(pattern)
+  if (typeof pattern === 'undefined') {
+    throw new TypeError('undefined pattern')
+  }
 
-  // Thanks to Yeting Li <https://github.com/yetingli> for
-  // improving this regexp to avoid a ReDOS vulnerability.
-  if (options.nobrace || !/\{(?:(?!\{).)*\}/.test(pattern)) {
+  if (options.nobrace ||
+    !pattern.match(/\{.*\}/)) {
     // shortcut. no need to expand.
     return [pattern]
   }
 
   return expand(pattern)
-}
-
-var MAX_PATTERN_LENGTH = 1024 * 64
-var assertValidPattern = function (pattern) {
-  if (typeof pattern !== 'string') {
-    throw new TypeError('invalid pattern')
-  }
-
-  if (pattern.length > MAX_PATTERN_LENGTH) {
-    throw new TypeError('pattern is too long')
-  }
 }
 
 // parse a component of the expanded set.
@@ -940,17 +915,14 @@ var assertValidPattern = function (pattern) {
 Minimatch.prototype.parse = parse
 var SUBPARSE = {}
 function parse (pattern, isSub) {
-  assertValidPattern(pattern)
+  if (pattern.length > 1024 * 64) {
+    throw new TypeError('pattern is too long')
+  }
 
   var options = this.options
 
   // shortcuts
-  if (pattern === '**') {
-    if (!options.noglobstar)
-      return GLOBSTAR
-    else
-      pattern = '*'
-  }
+  if (!options.noglobstar && pattern === '**') return GLOBSTAR
   if (pattern === '') return ''
 
   var re = ''
@@ -1006,12 +978,10 @@ function parse (pattern, isSub) {
     }
 
     switch (c) {
-      /* istanbul ignore next */
-      case '/': {
+      case '/':
         // completely not allowed, even escaped.
         // Should already be path-split by now.
         return false
-      }
 
       case '\\':
         clearStateChar()
@@ -1130,23 +1100,25 @@ function parse (pattern, isSub) {
 
         // handle the case where we left a class open.
         // "[z-a]" is valid, equivalent to "\[z-a\]"
-        // split where the last [ was, make sure we don't have
-        // an invalid re. if so, re-walk the contents of the
-        // would-be class to re-translate any characters that
-        // were passed through as-is
-        // TODO: It would probably be faster to determine this
-        // without a try/catch and a new RegExp, but it's tricky
-        // to do safely.  For now, this is safe and works.
-        var cs = pattern.substring(classStart + 1, i)
-        try {
-          RegExp('[' + cs + ']')
-        } catch (er) {
-          // not a valid class!
-          var sp = this.parse(cs, SUBPARSE)
-          re = re.substr(0, reClassStart) + '\\[' + sp[0] + '\\]'
-          hasMagic = hasMagic || sp[1]
-          inClass = false
-          continue
+        if (inClass) {
+          // split where the last [ was, make sure we don't have
+          // an invalid re. if so, re-walk the contents of the
+          // would-be class to re-translate any characters that
+          // were passed through as-is
+          // TODO: It would probably be faster to determine this
+          // without a try/catch and a new RegExp, but it's tricky
+          // to do safely.  For now, this is safe and works.
+          var cs = pattern.substring(classStart + 1, i)
+          try {
+            RegExp('[' + cs + ']')
+          } catch (er) {
+            // not a valid class!
+            var sp = this.parse(cs, SUBPARSE)
+            re = re.substr(0, reClassStart) + '\\[' + sp[0] + '\\]'
+            hasMagic = hasMagic || sp[1]
+            inClass = false
+            continue
+          }
         }
 
         // finish up the class.
@@ -1230,7 +1202,9 @@ function parse (pattern, isSub) {
   // something that could conceivably capture a dot
   var addPatternStart = false
   switch (re.charAt(0)) {
-    case '[': case '.': case '(': addPatternStart = true
+    case '.':
+    case '[':
+    case '(': addPatternStart = true
   }
 
   // Hack to work around lack of negative lookbehind in JS
@@ -1292,7 +1266,7 @@ function parse (pattern, isSub) {
   var flags = options.nocase ? 'i' : ''
   try {
     var regExp = new RegExp('^' + re + '$', flags)
-  } catch (er) /* istanbul ignore next - should be impossible */ {
+  } catch (er) {
     // If it was an invalid regular expression, then it can't match
     // anything.  This trick looks for a character after the end of
     // the string, which is of course impossible, except in multi-line
@@ -1350,7 +1324,7 @@ function makeRe () {
 
   try {
     this.regexp = new RegExp(re, flags)
-  } catch (ex) /* istanbul ignore next - should be impossible */ {
+  } catch (ex) {
     this.regexp = false
   }
   return this.regexp
@@ -1368,8 +1342,8 @@ minimatch.match = function (list, pattern, options) {
   return list
 }
 
-Minimatch.prototype.match = function match (f, partial) {
-  if (typeof partial === 'undefined') partial = this.partial
+Minimatch.prototype.match = match
+function match (f, partial) {
   this.debug('match', f, this.pattern)
   // short-circuit in the case of busted things.
   // comments, etc.
@@ -1451,7 +1425,6 @@ Minimatch.prototype.matchOne = function (file, pattern, partial) {
 
     // should be impossible.
     // some invalid regexp stuff in the set.
-    /* istanbul ignore if */
     if (p === false) return false
 
     if (p === GLOBSTAR) {
@@ -1525,7 +1498,6 @@ Minimatch.prototype.matchOne = function (file, pattern, partial) {
       // no match was found.
       // However, in partial mode, we can't say this is necessarily over.
       // If there's more *pattern* left, then
-      /* istanbul ignore if */
       if (partial) {
         // ran out of file
         this.debug('\n>>> no match, partial?', file, fr, pattern, pr)
@@ -1539,7 +1511,11 @@ Minimatch.prototype.matchOne = function (file, pattern, partial) {
     // patterns with magic have been turned into regexps.
     var hit
     if (typeof p === 'string') {
-      hit = f === p
+      if (options.nocase) {
+        hit = f.toLowerCase() === p.toLowerCase()
+      } else {
+        hit = f === p
+      }
       this.debug('string match', p, f, hit)
     } else {
       hit = f.match(p)
@@ -1570,16 +1546,16 @@ Minimatch.prototype.matchOne = function (file, pattern, partial) {
     // this is ok if we're doing the match as part of
     // a glob fs traversal.
     return partial
-  } else /* istanbul ignore else */ if (pi === pl) {
+  } else if (pi === pl) {
     // ran out of pattern, still have file left.
     // this is only acceptable if we're on the very last
     // empty segment of a file with a trailing slash.
     // a/* should match a/b/
-    return (fi === fl - 1) && (file[fi] === '')
+    var emptyFileEnd = (fi === fl - 1) && (file[fi] === '')
+    return emptyFileEnd
   }
 
   // should be unreachable.
-  /* istanbul ignore next */
   throw new Error('wtf?')
 }
 
@@ -1612,6 +1588,29 @@ exports.LANGUAGE_ID = 'quanty-lang';
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -1649,216 +1648,86 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.buildLanguageClient = exports.activate = void 0;
-var vscode = __webpack_require__(9496);
-var vscode_languageclient_1 = __webpack_require__(2850);
+exports.deactivate = exports.activate = void 0;
+var vscode = __importStar(__webpack_require__(9496));
 var node_1 = __webpack_require__(2847);
 var language_id_const_1 = __webpack_require__(5057);
-function activate(ctx) {
+var clientName = "Quanty";
+var clientId = "quanty";
+var client;
+function activate(context) {
     return __awaiter(this, void 0, void 0, function () {
-        var lc, err_1, msg;
+        var restartCmd, showLogsCmd;
+        var _this = this;
         return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    _a.trys.push([0, 3, , 4]);
-                    return [4 /*yield*/, buildLanguageClient()];
-                case 1:
-                    lc = _a.sent();
-                    return [4 /*yield*/, lc.start()];
-                case 2:
-                    _a.sent();
-                    return [3 /*break*/, 4];
-                case 3:
-                    err_1 = _a.sent();
-                    msg = err_1 && err_1 ? err_1.message : "unknown";
-                    vscode.window.showErrorMessage("error initializing templ LSP: ".concat(msg));
-                    return [3 /*break*/, 4];
-                case 4: return [2 /*return*/];
-            }
+            restartCmd = vscode.commands.registerCommand("".concat(language_id_const_1.LANGUAGE_ID, ".restart"), function () { return __awaiter(_this, void 0, void 0, function () {
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0: return [4 /*yield*/, stopClient()];
+                        case 1:
+                            _a.sent();
+                            startClient(context);
+                            return [2 /*return*/];
+                    }
+                });
+            }); });
+            showLogsCmd = vscode.commands.registerCommand("".concat(language_id_const_1.LANGUAGE_ID, ".showLogs"), function () {
+                if (!client)
+                    return;
+                client.outputChannel.show(true);
+            });
+            context.subscriptions.push(restartCmd, showLogsCmd);
+            startClient(context);
+            return [2 /*return*/];
         });
     });
 }
 exports.activate = activate;
-var loadConfiguration = function () {
-    var c = vscode.workspace.getConfiguration(language_id_const_1.LANGUAGE_ID);
-    return {
-    // goplsLog: c.get("goplsLog") || "",
-    // goplsRPCTrace: c.get("goplsRPCTrace") ? true : false,
-    // log: c.get("log") || "",
-    // pprof: c.get("pprof") ? true : false,
-    };
-};
-function buildLanguageClient() {
+function deactivate() {
     return __awaiter(this, void 0, void 0, function () {
-        var documentSelector, config, args, c;
-        var _this = this;
         return __generator(this, function (_a) {
-            documentSelector = [
-                {
-                    language: language_id_const_1.LANGUAGE_ID,
-                    scheme: "file"
-                }
-            ];
-            config = loadConfiguration();
-            args = ["lsp"];
-            // if(config.goplsLog.length > 0) {
-            //     args.push(`-goplsLog=${config.goplsLog}`)
-            // }
-            // if(config.goplsRPCTrace) {
-            //     args.push(`-goplsRPCTrace=true`)
-            // }
-            // if(config.log.length > 0) {
-            //     args.push(`-log=${config.log}`)
-            // }
-            // if(config.pprof) {
-            //     args.push(`-pprof=true`)
-            // }
-            vscode.window.showInformationMessage("Starting LSP: ".concat(language_id_const_1.LANGUAGE_ID, " ").concat(args.join(" ")));
-            c = new node_1.LanguageClient(language_id_const_1.LANGUAGE_ID, // id
-            'Quanty Lang', {
-                command: language_id_const_1.LANGUAGE_ID,
-                args: args,
-            }, {
-                documentSelector: documentSelector,
-                uriConverters: {
-                    // Apply file:/// scheme to all file paths.
-                    code2Protocol: function (uri) {
-                        return (uri.scheme ? uri : uri.with({ scheme: "file" })).toString();
-                    },
-                    protocol2Code: function (uri) { return vscode.Uri.parse(uri); },
-                },
-                errorHandler: {
-                    error: function (error, message, count) {
-                        // Allow 5 crashes before shutdown.
-                        if (count < 5) {
-                            return { action: vscode_languageclient_1.ErrorAction.Continue };
-                        }
-                        vscode.window.showErrorMessage("Error communicating with the language server: ".concat(error, ": ").concat(message, "."));
-                        return { action: vscode_languageclient_1.ErrorAction.Shutdown };
-                    },
-                    closed: function () { return ({ action: vscode_languageclient_1.CloseAction.DoNotRestart }); },
-                },
-                middleware: {
-                    provideDocumentFormattingEdits: function (document, options, token, next) { return __awaiter(_this, void 0, void 0, function () {
-                        return __generator(this, function (_a) {
-                            return [2 /*return*/, next(document, options, token)];
-                        });
-                    }); },
-                    provideCompletionItem: function (document, position, context, token, next) { return __awaiter(_this, void 0, void 0, function () {
-                        var list, items, hardcodedFilterText, _i, items_1, item, editorParamHintsEnabled;
-                        return __generator(this, function (_a) {
-                            switch (_a.label) {
-                                case 0: return [4 /*yield*/, next(document, position, context, token)];
-                                case 1:
-                                    list = _a.sent();
-                                    if (!list) {
-                                        return [2 /*return*/, list];
-                                    }
-                                    items = Array.isArray(list) ? list : list.items;
-                                    // Give all the candidates the same filterText to trick VSCode
-                                    // into not reordering our candidates. All the candidates will
-                                    // appear to be equally good matches, so VSCode's fuzzy
-                                    // matching/ranking just maintains the natural "sortText"
-                                    // ordering. We can only do this in tandem with
-                                    // "incompleteResults" since otherwise client side filtering is
-                                    // important.
-                                    if (!Array.isArray(list) &&
-                                        list.isIncomplete &&
-                                        list.items.length > 1) {
-                                        hardcodedFilterText = items[0].filterText;
-                                        if (!hardcodedFilterText) {
-                                            // tslint:disable:max-line-length
-                                            // According to LSP spec,
-                                            // https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_completion
-                                            // if filterText is falsy, the `label` should be used.
-                                            // But we observed that's not the case.
-                                            // Even if vscode picked the label value, that would
-                                            // cause to reorder candiates, which is not ideal.
-                                            // Force to use non-empty `label`.
-                                            // https://github.com/golang/vscode-go/issues/441
-                                            hardcodedFilterText = items[0].label.toString();
-                                        }
-                                        for (_i = 0, items_1 = items; _i < items_1.length; _i++) {
-                                            item = items_1[_i];
-                                            item.filterText = hardcodedFilterText;
-                                        }
-                                    }
-                                    editorParamHintsEnabled = vscode.workspace.getConfiguration("editor.parameterHints", document.uri)["enabled"];
-                                    // const goParamHintsEnabled = vscode.workspace.getConfiguration(
-                                    //   "[go]",
-                                    //   document.uri
-                                    // )["editor.parameterHints.enabled"];
-                                    // let paramHintsEnabled = false;
-                                    // if (typeof goParamHintsEnabled === "undefined") {
-                                    //   paramHintsEnabled = editorParamHintsEnabled;
-                                    // } else {
-                                    //   paramHintsEnabled = goParamHintsEnabled;
-                                    // }
-                                    // If the user has parameterHints (signature help) enabled,
-                                    // trigger it for function or method completion items.
-                                    // if (paramHintsEnabled) {
-                                    //   for (const item of items) {
-                                    //     if (
-                                    //       item.kind === CompletionItemKind.Method ||
-                                    //       item.kind === CompletionItemKind.Function
-                                    //     ) {
-                                    //       item.command = {
-                                    //         title: "triggerParameterHints",
-                                    //         command: "editor.action.triggerParameterHints",
-                                    //       };
-                                    //     }
-                                    //   }
-                                    // }
-                                    return [2 /*return*/, list];
-                            }
-                        });
-                    }); },
-                    // Keep track of the last file change in order to not prompt
-                    // user if they are actively working.
-                    didOpen: function (e, next) { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
-                        return [2 /*return*/, next(e)];
-                    }); }); },
-                    didChange: function (e, next) { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
-                        return [2 /*return*/, next(e)];
-                    }); }); },
-                    didClose: function (e, next) { return next(e); },
-                    didSave: function (e, next) { return next(e); },
-                    workspace: {
-                        configuration: function (params, token, next) { return __awaiter(_this, void 0, void 0, function () {
-                            var configs, ret, i, workspaceConfig, scopeUri, resource, section;
-                            return __generator(this, function (_a) {
-                                switch (_a.label) {
-                                    case 0: return [4 /*yield*/, next(params, token)];
-                                    case 1:
-                                        configs = _a.sent();
-                                        if (!configs || !Array.isArray(configs)) {
-                                            return [2 /*return*/, configs];
-                                        }
-                                        ret = [];
-                                        for (i = 0; i < configs.length; i++) {
-                                            workspaceConfig = configs[i];
-                                            if (!!workspaceConfig && typeof workspaceConfig === "object") {
-                                                scopeUri = params.items[i].scopeUri;
-                                                resource = scopeUri
-                                                    ? vscode.Uri.parse(scopeUri)
-                                                    : undefined;
-                                                section = params.items[i].section;
-                                            }
-                                            console.log(workspaceConfig);
-                                            ret.push(workspaceConfig);
-                                        }
-                                        return [2 /*return*/, ret];
-                                }
-                            });
-                        }); },
-                    },
-                },
-            }, false);
-            return [2 /*return*/, c];
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, stopClient()];
+                case 1:
+                    _a.sent();
+                    return [2 /*return*/];
+            }
         });
     });
 }
-exports.buildLanguageClient = buildLanguageClient;
+exports.deactivate = deactivate;
+function startClient(context) {
+    // If the extension is launched in debug mode then the debug server options are used
+    // Otherwise the run options are used
+    var serverOptions = {
+        run: { command: "quanty-lang" },
+        debug: { command: "quanty-lang" },
+    };
+    var clientOptions = {
+        // Register the server for Markdown documents.
+        documentSelector: [{ scheme: "file", language: language_id_const_1.LANGUAGE_ID }],
+    };
+    client = new node_1.LanguageClient(language_id_const_1.LANGUAGE_ID, clientName, serverOptions, clientOptions);
+    // Start the client. This will also launch the server.
+    client.start();
+}
+function stopClient() {
+    return __awaiter(this, void 0, void 0, function () {
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    if (!client)
+                        return [2 /*return*/];
+                    return [4 /*yield*/, client.stop()];
+                case 1:
+                    _a.sent();
+                    client.outputChannel.dispose();
+                    client.traceOutputChannel.dispose();
+                    return [2 /*return*/];
+            }
+        });
+    });
+}
 
 
 /***/ }),
